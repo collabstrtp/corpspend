@@ -87,74 +87,101 @@ export const getEmployeeExpenses = async (req, res) => {
 export const getManagerExpenses = async (req, res) => {
   try {
     console.log("getManagerExpenses: user", req.user?.id, req.user?.role);
-    const userId = req.user.id;
-    const statusFilter = req.query.status; // optional: pending, approved, rejected
+    const statusFilter = req.query.status; // optional: pending, approved, rejected, all
 
-    if (statusFilter === "pending") {
-      // Fetch pending expenses in company and populate employee.manager & approvalSequence
-      const pending = await Expense.find({
+    // Managers can filter by pending, approved, rejected, all
+    if (
+      statusFilter &&
+      !["pending", "approved", "rejected", "all"].includes(statusFilter)
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Invalid filter for manager role" });
+    }
+
+    // For all: return all expenses in company (excluding draft)
+    if (!statusFilter || statusFilter === "all") {
+      const expenses = await Expense.find({
         company: req.user.company,
-        status: "pending",
+        status: { $ne: "draft" },
       })
+        .sort({ createdAt: -1 })
         .populate({ path: "employee", populate: { path: "manager" } })
-        .populate("category approvalSequence");
+        .populate("category")
+        .populate("approvalSequence");
 
-      console.log("getManagerExpenses: company pending count=", pending.length);
-
-      const filtered = pending.filter((expense) => {
-        const seq = expense.approvalSequence || [];
-        const idx =
-          typeof expense.currentApprovalStep === "number"
-            ? expense.currentApprovalStep
-            : 0;
-        const current = seq[idx];
-        const approverId = current?._id
-          ? current._id.toString()
-          : current
-          ? current.toString()
-          : null;
-
-        if (approverId === userId) return true;
-
-        // Check employee manager match
-        const empManagerId = expense.employee?.manager?._id
-          ? expense.employee.manager._id.toString()
-          : expense.employee?.manager
-          ? expense.employee.manager.toString()
-          : null;
-
-        if (empManagerId === userId && (seq.length === 0 || idx === 0))
-          return true;
-
-        return false;
-      });
-
-      console.log(
-        "getManagerExpenses: returning pending",
-        filtered.length,
-        "items"
-      );
-      return res.status(200).json(filtered);
+      console.log("getManagerExpenses: returning all count=", expenses.length);
+      return res.status(200).json(expenses);
     }
 
-    // For other statuses or all: return all expenses in company (optionally filtered by status)
-    const query = { company: req.user.company };
-    if (statusFilter && ["approved", "rejected"].includes(statusFilter)) {
-      query.status = statusFilter;
-    }
-
-    const expenses = await Expense.find(query)
+    // For specific status: return all expenses in company with that status
+    const expenses = await Expense.find({
+      company: req.user.company,
+      status: statusFilter,
+    })
       .sort({ createdAt: -1 })
       .populate({ path: "employee", populate: { path: "manager" } })
-      .populate("category approvalSequence");
+      .populate("category")
+      .populate("approvalSequence");
 
     console.log(
-      "getManagerExpenses: returning all/company filtered count=",
+      "getManagerExpenses: returning",
+      statusFilter,
+      "count=",
       expenses.length
     );
-    res.status(200).json(expenses);
+    return res.status(200).json(expenses);
   } catch (error) {
     console.error("getManagerExpenses Error:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getAdminExpenses = async (req, res) => {
+  try {
+    // Only admins should access this endpoint
+    if (req.user.role !== "admin")
+      return res.status(403).json({ message: "Access denied" });
+
+    const statusFilter = req.query.status; // optional: pending, approved, payment_proceed, declined, all
+
+    // Admins can filter by pending, approved, payment_proceed, declined, all
+    if (
+      statusFilter &&
+      !["approved", "payment_proceed", "declined", "rejected", "all"].includes(
+        statusFilter
+      )
+    ) {
+      return res.status(400).json({ message: "Invalid filter for admin role" });
+    }
+
+    // For all: return all expenses in company (excluding draft)
+    if (!statusFilter || statusFilter === "all") {
+      const expenses = await Expense.find({
+        company: req.user.company,
+        status: { $ne: "draft" },
+      })
+        .sort({ createdAt: -1 })
+        .populate({ path: "employee", populate: { path: "manager" } })
+        .populate("category")
+        .populate("approvalSequence");
+
+      return res.status(200).json(expenses);
+    }
+
+    // For specific status: return all expenses in company with that status
+    const expenses = await Expense.find({
+      company: req.user.company,
+      status: statusFilter,
+    })
+      .sort({ createdAt: -1 })
+      .populate({ path: "employee", populate: { path: "manager" } })
+      .populate("category")
+      .populate("approvalSequence");
+
+    return res.status(200).json(expenses);
+  } catch (error) {
+    console.error("getAdminExpenses Error:", error.message);
     res.status(500).json({ message: error.message });
   }
 };
@@ -162,9 +189,9 @@ export const getManagerExpenses = async (req, res) => {
 export const updateExpenseStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const expense = await Expense.findById(req.params.id).populate(
-      "category employee approvalSequence"
-    );
+    const expense = await Expense.findById(req.params.id)
+      .populate("category employee")
+      .populate("approvalSequence");
 
     if (!expense) return res.status(404).json({ message: "Expense not found" });
 
@@ -177,38 +204,24 @@ export const updateExpenseStatus = async (req, res) => {
           .status(400)
           .json({ message: "Only draft expenses can be submitted" });
 
-      // Try to find an approval rule for this company/category
+      // Simplified sequence: employee's manager then company admin
+      const employee = await User.findById(expense.employee).populate(
+        "manager"
+      );
+      const companyAdmin = await User.findOne({
+        company: expense.company,
+        role: "admin",
+      });
+
       let seq = [];
-      try {
-        const ApprovalRule = (await import("../models/ApprovalRule.js"))
-          .default;
-        const rule = await ApprovalRule.findOne({
-          company: expense.company,
-          $or: [{ categories: expense.category }, { categories: { $size: 0 } }],
-        });
-        if (rule && rule.approvalSequence && rule.approvalSequence.length) {
-          seq = rule.approvalSequence.slice();
-        }
-      } catch (e) {
-        // If ApprovalRule model isn't available or query fails, we'll fallback
-        console.warn("ApprovalRule lookup failed or not present", e.message);
-      }
+      if (employee?.manager) seq.push(employee.manager._id);
+      if (companyAdmin) seq.push(companyAdmin._id);
 
-      // Fallback sequence: employee's manager then company admin
-      if (!seq || seq.length === 0) {
-        const employee = await User.findById(expense.employee).populate(
-          "manager"
-        );
-        if (employee?.manager) seq.push(employee.manager._id);
-        const companyAdmin = await User.findOne({
-          company: expense.company,
-          role: "admin",
-        });
-        if (companyAdmin) seq.push(companyAdmin._id);
+      // remove duplicates and falsy values
+      seq = [...new Set(seq.filter((s) => !!s))];
 
-        // remove duplicates and falsy values
-        seq = [...new Set(seq.filter((s) => !!s))];
-      }
+      // Log sequence for debugging
+      console.log("Expense submit: seq=", seq, "expenseId=", expense._id);
 
       if (seq.length === 0) {
         // No approvers available -> auto-approve
@@ -228,8 +241,13 @@ export const updateExpenseStatus = async (req, res) => {
       return res.status(200).json(reloaded);
     }
 
-    // Approve or reject (approver action)
-    if (status === "approved" || status === "rejected") {
+    // Approve or reject (approver action) including admin payment actions
+    if (
+      status === "approved" ||
+      status === "rejected" ||
+      status === "payment_proceed" ||
+      status === "declined"
+    ) {
       const seq = expense.approvalSequence || [];
       const idx =
         typeof expense.currentApprovalStep === "number"
@@ -237,17 +255,30 @@ export const updateExpenseStatus = async (req, res) => {
           : 0;
       const currentApprover = seq[idx];
 
-      // Determine authorization: allow if current approver matches user, or user is admin,
+      console.log(
+        "updateExpenseStatus ACTION:",
+        status,
+        "expenseId:",
+        expense._id,
+        "userId:",
+        userId
+      );
+      console.log(
+        "Before approve: seq=",
+        seq,
+        "idx=",
+        idx,
+        "currentApprover=",
+        currentApprover,
+        "expense.status=",
+        expense.status
+      );
+
+      // Determine authorization: allow if current approver matches user,
       // or user is employee's manager (when at first step or no sequence exists)
       let allowed = false;
-      if (req.user.role === "admin") {
-        allowed = true;
-        console.log(
-          "updateExpenseStatus: admin user allowed to act",
-          req.user.id
-        );
-      }
 
+      // If currentApprover matches request user, allow
       if (currentApprover && currentApprover.toString() === userId.toString()) {
         allowed = true;
         console.log("updateExpenseStatus: user is current approver", userId);
@@ -281,14 +312,34 @@ export const updateExpenseStatus = async (req, res) => {
         }
       }
 
+      // For payment_proceed or declined, allow any admin
+      if (
+        !allowed &&
+        (status === "payment_proceed" || status === "declined") &&
+        req.user.role === "admin"
+      ) {
+        allowed = true;
+        console.log(
+          "updateExpenseStatus: admin proceeding payment or declining",
+          userId
+        );
+      }
+
       if (!allowed) {
         return res
           .status(403)
           .json({ message: "You are not the current approver" });
       }
 
-      if (status === "rejected") {
-        expense.status = "rejected";
+      // Handle declines (admin-specific decline) mapping to 'declined'
+      if (status === "rejected" || status === "declined") {
+        console.log(
+          "Expense declined/rejected by user:",
+          userId,
+          "expenseId:",
+          expense._id
+        );
+        expense.status = status === "declined" ? "declined" : "rejected";
         await expense.save();
         const reloaded = await Expense.findById(expense._id).populate(
           "employee category approvalSequence"
@@ -296,7 +347,7 @@ export const updateExpenseStatus = async (req, res) => {
         return res.status(200).json(reloaded);
       }
 
-      // status === 'approved'
+      // status === 'approved' or 'payment_proceed'
       // Re-evaluate sequence in case we changed it
       const refreshedSeq = expense.approvalSequence || [];
       const refreshedIdx =
@@ -304,15 +355,30 @@ export const updateExpenseStatus = async (req, res) => {
           ? expense.currentApprovalStep
           : 0;
 
-      // If current approver is the last in sequence, final approval
-      if (refreshedIdx >= refreshedSeq.length - 1) {
-        expense.status = "approved";
-        expense.currentApprovalStep = refreshedIdx + 1; // mark completed
-      } else {
-        // Move to next approver and keep pending
+      // If this action is 'payment_proceed', treat as admin finalization
+      if (status === "payment_proceed") {
+        expense.status = "payment_proceed";
         expense.currentApprovalStep = refreshedIdx + 1;
-        expense.status = "pending";
+      } else if (status === "approved") {
+        // If current approver is the last in sequence, final approval
+        if (refreshedIdx >= refreshedSeq.length - 1) {
+          expense.status = "approved";
+          expense.currentApprovalStep = refreshedIdx + 1; // mark completed
+        } else {
+          // Move to next approver and keep pending
+          expense.currentApprovalStep = refreshedIdx + 1;
+          expense.status = "approved";
+        }
       }
+
+      console.log(
+        "After approve-like action: status=",
+        expense.status,
+        "currentApprovalStep=",
+        expense.currentApprovalStep,
+        "expenseId=",
+        expense._id
+      );
 
       await expense.save();
       const reloaded = await Expense.findById(expense._id).populate(

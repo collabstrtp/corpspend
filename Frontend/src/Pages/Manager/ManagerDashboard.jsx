@@ -180,22 +180,30 @@ export default function ManagerView() {
                       </div>
                     </td>
                     <td className="p-2">
-                      {canAct && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleApprove(expense._id)}
-                            className="px-3 py-1 bg-white border-2 border-green-600 text-green-600 rounded hover:bg-green-50 text-sm font-medium flex items-center gap-1"
-                          >
-                            <CheckCircle size={14} /> Approve
-                          </button>
-                          <button
-                            onClick={() => handleReject(expense._id)}
-                            className="px-3 py-1 bg-white border-2 border-red-600 text-red-600 rounded hover:bg-red-50 text-sm font-medium flex items-center gap-1"
-                          >
-                            <XCircle size={14} /> Reject
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleApprove(expense._id)}
+                          disabled={!canAct}
+                          className={`px-3 py-1 border-2 rounded text-sm font-medium flex items-center gap-1 ${
+                            canAct
+                              ? "bg-white border-green-600 text-green-600 hover:bg-green-50"
+                              : "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
+                          }`}
+                        >
+                          <CheckCircle size={14} /> Approve
+                        </button>
+                        <button
+                          onClick={() => handleReject(expense._id)}
+                          disabled={!canAct}
+                          className={`px-3 py-1 border-2 rounded text-sm font-medium flex items-center gap-1 ${
+                            canAct
+                              ? "bg-white border-red-600 text-red-600 hover:bg-red-50"
+                              : "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
+                          }`}
+                        >
+                          <XCircle size={14} /> Reject
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

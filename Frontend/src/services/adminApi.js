@@ -105,3 +105,41 @@ export async function updateApprovalRule(ruleId, payload) {
   );
   return res.data;
 }
+
+// Admin expenses (approve/reject/list)
+export async function getAdminExpenses(status) {
+  const url = status
+    ? `${BASE_URL}/expenses/admin?status=${status}`
+    : `${BASE_URL}/expenses/admin`;
+  const res = await axios.get(url, { headers: getAuthHeader() });
+  return res.data;
+}
+
+export async function updateExpenseStatus(expenseId, status) {
+  const res = await axios.patch(
+    `${BASE_URL}/expenses/${expenseId}/status`,
+    { status },
+    { headers: { "Content-Type": "application/json", ...getAuthHeader() } }
+  );
+  return res.data;
+}
+
+// Admin action: proceed payment (finalize by admin)
+export async function approveExpense(expenseId) {
+  // alias kept for existing UI: will mark as payment_proceed
+  return updateExpenseStatus(expenseId, "payment_proceed");
+}
+
+export async function rejectExpense(expenseId) {
+  // alias kept for existing UI: will mark as declined
+  return updateExpenseStatus(expenseId, "declined");
+}
+
+// explicit helpers
+export async function paymentProceedExpense(expenseId) {
+  return updateExpenseStatus(expenseId, "payment_proceed");
+}
+
+export async function declineExpense(expenseId) {
+  return updateExpenseStatus(expenseId, "declined");
+}

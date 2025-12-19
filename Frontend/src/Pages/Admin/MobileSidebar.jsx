@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, LayoutDashboard } from "lucide-react";
+import { Menu, X, LayoutDashboard, Send } from "lucide-react";
 
 import { Outlet } from "react-router-dom";
 
-
 const menuItems = [
   { label: "Dashboard", icon: <LayoutDashboard />, path: "/admin" },
+  { label: "Approvals", icon: <Send />, path: "/admin/approvals" },
 ];
 
 const MobileSidebar = () => {
@@ -26,11 +26,7 @@ const MobileSidebar = () => {
           <div className="w-64 bg-black h-full p-4">
             <div className="flex justify-between items-center mb-4 text-white">
               <h2 className="text-lg font-semibold">Samantha</h2>
-              <X
-
-                onClick={() => setIsOpen(false)}
-                className="cursor-pointer"
-              />
+              <X onClick={() => setIsOpen(false)} className="cursor-pointer" />
             </div>
 
             <p className="text-xs text-gray-400 mb-4">+998 (99) 436-46-15</p>
