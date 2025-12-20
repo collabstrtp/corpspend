@@ -103,7 +103,9 @@ export default function ManagerView() {
                 <th className="text-left p-2 font-semibold">
                   Approval Subject
                 </th>
-                <th className="text-left p-2 font-semibold">Request Owner</th>
+                <th className="text-left p-2 font-semibold">
+                  Request Employee
+                </th>
                 <th className="text-left p-2 font-semibold">Category</th>
                 <th className="text-left p-2 font-semibold">Request Status</th>
                 <th className="text-left p-2 font-semibold">

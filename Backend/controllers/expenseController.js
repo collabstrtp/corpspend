@@ -145,21 +145,19 @@ export const getAdminExpenses = async (req, res) => {
 
     const statusFilter = req.query.status; // optional: pending, approved, payment_proceed, declined, all
 
-    // Admins can filter by pending, approved, payment_proceed, declined, all
+    // Admins can filter by approved, payment_proceed, declined, all
     if (
       statusFilter &&
-      !["approved", "payment_proceed", "declined", "rejected", "all"].includes(
-        statusFilter
-      )
+      !["approved", "payment_proceed", "declined", "all"].includes(statusFilter)
     ) {
       return res.status(400).json({ message: "Invalid filter for admin role" });
     }
 
-    // For all: return all expenses in company (excluding draft)
+    // For all: return approved, payment_proceed, declined expenses in company
     if (!statusFilter || statusFilter === "all") {
       const expenses = await Expense.find({
         company: req.user.company,
-        status: { $ne: "draft" },
+        status: { $in: ["approved", "payment_proceed", "declined"] },
       })
         .sort({ createdAt: -1 })
         .populate({ path: "employee", populate: { path: "manager" } })

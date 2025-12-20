@@ -221,7 +221,6 @@ export default function EmpDashboard() {
           <table className="w-full">
             <thead>
               <tr className="border-b-2 border-gray-800">
-                <th className="text-left p-2 font-semibold">Employee</th>
                 <th className="text-left p-2 font-semibold">Description</th>
                 <th className="text-left p-2 font-semibold">Date</th>
                 <th className="text-left p-2 font-semibold">Category</th>
@@ -238,11 +237,11 @@ export default function EmpDashboard() {
                   className="border-b border-gray-300 hover:bg-gray-50 cursor-pointer"
                   onClick={() => viewExpenseDetails(expense)}
                 >
-                  <td className="p-2">
+                  {/* <td className="p-2">
                     {expense.employee?.name ||
                       expense.employee?.email ||
                       "Unknown"}
-                  </td>
+                  </td> */}
                   <td className="p-2">{expense.description}</td>
                   <td className="p-2">{expense.date}</td>
                   <td className="p-2">

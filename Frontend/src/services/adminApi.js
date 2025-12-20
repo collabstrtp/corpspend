@@ -76,36 +76,6 @@ export async function updateCategory(categoryId, updates) {
   return res.data;
 }
 
-// Approval Rules
-export async function fetchApprovalRules() {
-  const res = await axios.get(`${BASE_URL}/approvalrules/getrule`, {
-    headers: getAuthHeader(),
-  });
-  return res.data;
-}
-
-export async function createApprovalRule(payload) {
-  const res = await axios.post(
-    `${BASE_URL}/approvalrules/createrule`,
-    payload,
-    {
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    }
-  );
-  return res.data;
-}
-
-export async function updateApprovalRule(ruleId, payload) {
-  const res = await axios.put(
-    `${BASE_URL}/approvalrules/updaterule/${ruleId}`,
-    payload,
-    {
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    }
-  );
-  return res.data;
-}
-
 // Admin expenses (approve/reject/list)
 export async function getAdminExpenses(status) {
   const url = status
