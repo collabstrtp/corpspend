@@ -3,6 +3,8 @@ import { BASE_URL } from "../config/urlconfig";
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
+    console.log(token);
+
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

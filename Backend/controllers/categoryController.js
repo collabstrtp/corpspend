@@ -20,6 +20,7 @@ export const createCategory = async (req, res) => {
     });
     await category.save();
     res.status(201).json(category);
+    console.log("Category Created:", category);
   } catch (error) {
     console.error("Create Category Error:", error.message);
     res.status(500).json({ message: error.message });

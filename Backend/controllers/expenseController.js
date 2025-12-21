@@ -157,3 +157,77 @@ export const updateExpenseStatus = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+import fetch from "node-fetch";
+import {
+  extractReceiptText,
+  receiptResponseSchema,
+  formatGroqResponse,
+} from "../utils/extract.js";
+
+export const uploadReceipt = async (req, res) => {
+  try {
+    const receiptText = await extractReceiptText(req.file);
+    console.log("Receipt Text:", receiptText);
+
+    const prompt = `
+You will be given RAW TEXT extracted from a receipt.
+
+Your task is ONLY to FORMAT the information into the JSON structure below.
+Do NOT add explanations, comments, or extra text.
+If a field is missing or unclear, use null.
+
+Return ONLY valid JSON.
+
+JSON FORMAT:
+${JSON.stringify(receiptResponseSchema, null, 2)}
+
+RAW RECEIPT TEXT:
+${receiptText}
+`;
+
+
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0,
+          max_tokens: 2048,
+        }),
+      }
+    );
+
+
+
+    if (!response.ok) {
+      throw new Error(`Groq API failed: ${response.status}`);
+    }
+
+
+    const data = await response.json();
+
+    const formattedData = formatGroqResponse(
+      data,
+      receiptResponseSchema
+    );
+
+    res.status(200).json({
+      success: true,
+      provider: "groq",
+      data: formattedData,
+    });
+  } catch (error) {
+    console.error("Receipt Upload Error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to process receipt",
+    });
+  }
+};

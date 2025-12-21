@@ -1,11 +1,14 @@
 import express from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
+import { singleUpload } from "../middleware/multer.js";
+
 import {
   getExpenses,
   getEmployeeExpenses,
   getManagerExpenses,
   createExpense,
   updateExpenseStatus,
+  uploadReceipt
 } from "../controllers/expenseController.js";
 
 const router = express.Router();
@@ -15,5 +18,6 @@ router.get("/employee", authMiddleware, getEmployeeExpenses);
 router.get("/manager", authMiddleware, getManagerExpenses);
 router.post("/create", authMiddleware, createExpense);
 router.patch("/:id/status", authMiddleware, updateExpenseStatus);
+router.post("/upload-receipt", singleUpload, uploadReceipt);
 
 export default router;
