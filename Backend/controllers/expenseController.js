@@ -50,7 +50,12 @@ export const createExpense = async (req, res) => {
         amountConverted = amountOriginal;
       }
     }
-
+ if (
+      category !== "other" &&
+      !mongoose.Types.ObjectId.isValid(category)
+    ) {
+      return res.status(400).json({ message: "Invalid category" });
+    }
     const expense = new Expense({
       employee: req.user.id,
       company: req.user.company,
