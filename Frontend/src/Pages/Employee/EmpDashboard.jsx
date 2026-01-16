@@ -8,10 +8,14 @@ import {
 import { getCategories } from "../../services/categoryApi";
 import axios from "axios";
 import { jsPDF } from "jspdf";
+import { BASE_URL } from "../../config/urlconfig";
+
 
 export default function EmpDashboard() {
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
+    const token = localStorage.getItem("token");
+
 
   useEffect(() => {
     async function fetchData() {
@@ -48,7 +52,6 @@ export default function EmpDashboard() {
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [file, setFile] = useState(null);
 
-
   const addExpense = async () => {
     if (newExpense.description && newExpense.amount && newExpense.category) {
       try {
@@ -84,7 +87,9 @@ export default function EmpDashboard() {
     try {
       const updated = await updateExpenseStatus(id, { status: "pending" });
       setExpenses(
-        expenses.map((exp) => (exp._id === id || exp.id === id ? updated : exp))
+        expenses.map((exp) =>
+          exp._id === id || exp.id === id ? updated : exp,
+        ),
       );
       if (
         selectedExpense &&
@@ -124,107 +129,103 @@ export default function EmpDashboard() {
   };
 
   useEffect(() => {
-  if (file) handleUpload({ preventDefault: () => {} });
-}, [file]);
-
+    if (file) handleUpload({ preventDefault: () => {} });
+  }, [file]);
 
   const handleFileChange = (e) => {
-  const selectedFile = e.target.files[0];
+    const selectedFile = e.target.files[0];
 
-  if (!selectedFile) return;
+    if (!selectedFile) return;
 
-  if (
-    selectedFile.type.startsWith("image/") ||
-    selectedFile.type === "application/pdf"
-  ) {
-    setFile(selectedFile);
-  } else {
-    alert("Please select a valid image or PDF file!");
-    setFile(null);
-  }
-};
+    if (
+      selectedFile.type.startsWith("image/") ||
+      selectedFile.type === "application/pdf"
+    ) {
+      setFile(selectedFile);
+    } else {
+      alert("Please select a valid image or PDF file!");
+      setFile(null);
+    }
+  };
 
+  const convertImageToPDF = (imageFile) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
 
- const convertImageToPDF = (imageFile) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
 
-    reader.onload = (e) => {
-      const img = new Image();
-      img.src = e.target.result;
+        img.onload = () => {
+          const pdf = new jsPDF({
+            orientation: img.width > img.height ? "landscape" : "portrait",
+            unit: "px",
+            format: [img.width, img.height],
+          });
 
-      img.onload = () => {
-        const pdf = new jsPDF({
-          orientation: img.width > img.height ? "landscape" : "portrait",
-          unit: "px",
-          format: [img.width, img.height],
-        });
+          pdf.addImage(
+            img,
+            imageFile.type.includes("png") ? "PNG" : "JPEG",
+            0,
+            0,
+            img.width,
+            img.height,
+          );
 
-        pdf.addImage(
-          img,
-          imageFile.type.includes("png") ? "PNG" : "JPEG",
-          0,
-          0,
-          img.width,
-          img.height
-        );
+          const pdfBlob = pdf.output("blob");
+          resolve(new Blob([pdfBlob], { type: "application/pdf" }));
+        };
 
-        const pdfBlob = pdf.output("blob");
-        resolve(
-          new Blob([pdfBlob], { type: "application/pdf" })
-        );
+        img.onerror = reject;
       };
 
-      img.onerror = reject;
-    };
+      reader.onerror = reject;
+      reader.readAsDataURL(imageFile);
+    });
+  };
 
-    reader.onerror = reject;
-    reader.readAsDataURL(imageFile);
-  });
-};
+  const handleUpload = async (e) => {
+    e.preventDefault();
 
-
-const handleUpload = async (e) => {
-  e.preventDefault();
-
-  if (!file) {
-    alert("No file selected!");
-    return;
-  }
-
-  try {
-    let fileToUpload = file;
-
-    // Convert image → PDF only if image
-    if (file.type.startsWith("image/")) {
-      fileToUpload = await convertImageToPDF(file);
+    if (!file) {
+      alert("No file selected!");
+      return;
     }
 
-    const formData = new FormData();
-    formData.append(
-      "file",
-      fileToUpload,
-      file.type.startsWith("image/")
-        ? "receipt.pdf"
-        : file.name
-    );
+    try {
+      let fileToUpload = file;
 
-    const res = await axios.post(
-      "http://localhost:5000/expenses/upload-receipt",
-      formData
-    );
+      // Convert image → PDF only if image
+      if (file.type.startsWith("image/")) {
+        fileToUpload = await convertImageToPDF(file);
+      }
 
-    alert(res.data.message);
-    console.log(res.data);
+      const formData = new FormData();
+      formData.append(
+        "file",
+        fileToUpload,
+        file.type.startsWith("image/") ? "receipt.pdf" : file.name,
+      );
 
-  } catch (error) {
-    console.error("Upload error:", error);
-    alert("File upload failed");
+      const res = await axios.post(
+  `${BASE_URL}/expenses/upload-receipt`,
+  formData,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "multipart/form-data",
+    },
   }
-};
+);
 
 
-
+      alert("File uploaded successfully");
+      console.log(res.data);
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("File upload failed");
+    }
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen">
@@ -306,16 +307,15 @@ const handleUpload = async (e) => {
           >
             <Plus size={16} /> New
           </button>
-   <label className="px-4 py-2 bg-blue-600 text-white border-2 border-blue-600 rounded hover:bg-blue-700 flex items-center gap-2 cursor-pointer">
-  <Upload size={16} /> Upload Receipt
- <input
-  type="file"
-  accept="image/*,application/pdf"
-  onChange={handleFileChange}
-  className="hidden"
-/>
-
-</label>
+          <label className="px-4 py-2 bg-blue-600 text-white border-2 border-blue-600 rounded hover:bg-blue-700 flex items-center gap-2 cursor-pointer">
+            <Upload size={16} /> Upload Receipt
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </label>
         </div>
 
         <div className="overflow-x-auto">
@@ -344,11 +344,13 @@ const handleUpload = async (e) => {
                       "Unknown"}
                   </td> */}
                   <td className="p-2">{expense.description}</td>
-                  <td className="p-2">{expense.date}</td>
-                 <td className="p-2">
-  {categories.find((c) => c._id === expense.category)?.name ||
-    (expense.category === "other" ? "Other" : "Unknown")}
+<td className="p-2">
+  {new Date(expense.dateIncurred).toLocaleDateString("en-GB")}
 </td>
+                  <td className="p-2">
+                    {categories.find((c) => c._id === expense.category)?.name ||
+                      (expense.category === "other" ? "Other" : "Unknown")}
+                  </td>
 
                   <td className="p-2">{expense.paidBy}</td>
                   <td className="p-2">{expense.remarks}</td>
@@ -365,7 +367,7 @@ const handleUpload = async (e) => {
                   <td className="p-2">
                     <span
                       className={`px-2 py-1 rounded text-xs font-medium border ${getStatusBadge(
-                        expense.status
+                        expense.status,
                       )}`}
                     >
                       {expense.status}
@@ -436,24 +438,23 @@ const handleUpload = async (e) => {
                   <label className="block text-sm font-semibold mb-2">
                     Category
                   </label>
-                <select
-  className="w-full border-2 border-gray-300 rounded px-3 py-2"
-  value={newExpense.category}
-  onChange={(e) =>
-    setNewExpense({ ...newExpense, category: e.target.value })
-  }
->
-  <option value="">Select category</option>
+                  <select
+                    className="w-full border-2 border-gray-300 rounded px-3 py-2"
+                    value={newExpense.category}
+                    onChange={(e) =>
+                      setNewExpense({ ...newExpense, category: e.target.value })
+                    }
+                  >
+                    <option value="">Select category</option>
 
-  <option value="other">Other</option>
+                    <option value="other">Other</option>
 
-  {categories.map((category) => (
-    <option key={category._id} value={category._id}>
-      {category.name}
-    </option>
-  ))}
-</select>
-
+                    {categories.map((category) => (
+                      <option key={category._id} value={category._id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -560,7 +561,7 @@ const handleUpload = async (e) => {
                 </span>
                 <span
                   className={`px-3 py-1 rounded text-sm font-medium border ${getStatusBadge(
-                    selectedExpense.status
+                    selectedExpense.status,
                   )}`}
                 >
                   {selectedExpense.status}
@@ -597,21 +598,20 @@ const handleUpload = async (e) => {
                       Category
                     </label>
                     <select
-  className="w-full border-2 border-gray-300 rounded px-3 py-2 bg-gray-50"
-  value={selectedExpense.category}
-  disabled={selectedExpense.status !== "draft"}
->
-  {/* Permanent option */}
-  <option value="other">Other</option>
+                      className="w-full border-2 border-gray-300 rounded px-3 py-2 bg-gray-50"
+                      value={selectedExpense.category}
+                      disabled={selectedExpense.status !== "draft"}
+                    >
+                      {/* Permanent option */}
+                      <option value="other">Other</option>
 
-  {/* DB categories */}
-  {categories.map((cat) => (
-    <option key={cat._id} value={cat._id}>
-      {cat.name}
-    </option>
-  ))}
-</select>
-
+                      {/* DB categories */}
+                      {categories.map((cat) => (
+                        <option key={cat._id} value={cat._id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
