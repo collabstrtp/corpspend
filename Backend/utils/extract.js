@@ -124,16 +124,20 @@ export const extractReceiptText = async (file) => {
    Receipt Response Schema
    ========================================================= */
 export const receiptResponseSchema = {
+  category: "Other",              
+  description: null,             
+  amountOriginal: null,          
+  currencyOriginal: null,         
+  amountConverted: null,          
+  dateIncurred: null,             
+  receiptUrl: null,             
   merchantName: null,
-  transactionDate: null,
-  totalAmount: null,
-  currencyCode: null,
-  items: [],
-  category: "Other",
   paymentMethod: null,
-  taxAmount: null,
   subtotal: null,
+  taxAmount: null,
+  items: []
 };
+
 
 /* =========================================================
    LLM Helpers

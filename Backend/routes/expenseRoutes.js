@@ -20,6 +20,6 @@ router.get("/manager", authMiddleware, getManagerExpenses);
 router.get("/admin", authMiddleware, getAdminExpenses);
 router.post("/create", authMiddleware, createExpense);
 router.patch("/:id/status", authMiddleware, updateExpenseStatus);
-router.post("/upload-receipt", singleUpload, uploadReceipt);
+router.post("/upload-receipt", authMiddleware, singleUpload, uploadReceipt);
 
 export default router;

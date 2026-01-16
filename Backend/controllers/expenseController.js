@@ -8,7 +8,7 @@ import axios from "axios";
 export const getExpenses = async (req, res) => {
   try {
     const expenses = await Expense.find({ company: req.user.company }).populate(
-      "employee category approvalSequence"
+      "employee category approvalSequence",
     );
     res.status(200).json(expenses);
   } catch (error) {
@@ -40,7 +40,7 @@ export const createExpense = async (req, res) => {
     if (currencyOriginal !== baseCurrency) {
       try {
         const response = await axios.get(
-          `https://api.exchangerate-api.com/v4/latest/${currencyOriginal}`
+          `https://api.exchangerate-api.com/v4/latest/${currencyOriginal}`,
         );
         const rate = response.data.rates[baseCurrency];
         amountConverted = amountOriginal * rate;
@@ -50,10 +50,7 @@ export const createExpense = async (req, res) => {
         amountConverted = amountOriginal;
       }
     }
- if (
-      category !== "other" &&
-      !mongoose.Types.ObjectId.isValid(category)
-    ) {
+    if (category !== "other" && !mongoose.Types.ObjectId.isValid(category)) {
       return res.status(400).json({ message: "Invalid category" });
     }
     const expense = new Expense({
@@ -81,7 +78,7 @@ export const createExpense = async (req, res) => {
 export const getEmployeeExpenses = async (req, res) => {
   try {
     const expenses = await Expense.find({ employee: req.user.id }).populate(
-      "employee category approvalSequence"
+      "employee category approvalSequence",
     );
     res.status(200).json(expenses);
   } catch (error) {
@@ -133,7 +130,7 @@ export const getManagerExpenses = async (req, res) => {
       "getManagerExpenses: returning",
       statusFilter,
       "count=",
-      expenses.length
+      expenses.length,
     );
     return res.status(200).json(expenses);
   } catch (error) {
@@ -209,7 +206,7 @@ export const updateExpenseStatus = async (req, res) => {
 
       // Simplified sequence: employee's manager then company admin
       const employee = await User.findById(expense.employee).populate(
-        "manager"
+        "manager",
       );
       const companyAdmin = await User.findOne({
         company: expense.company,
@@ -239,7 +236,7 @@ export const updateExpenseStatus = async (req, res) => {
 
       await expense.save();
       const reloaded = await Expense.findById(expense._id).populate(
-        "employee category approvalSequence"
+        "employee category approvalSequence",
       );
       return res.status(200).json(reloaded);
     }
@@ -264,7 +261,7 @@ export const updateExpenseStatus = async (req, res) => {
         "expenseId:",
         expense._id,
         "userId:",
-        userId
+        userId,
       );
       console.log(
         "Before approve: seq=",
@@ -274,7 +271,7 @@ export const updateExpenseStatus = async (req, res) => {
         "currentApprover=",
         currentApprover,
         "expense.status=",
-        expense.status
+        expense.status,
       );
 
       // Determine authorization: allow if current approver matches user,
@@ -293,14 +290,14 @@ export const updateExpenseStatus = async (req, res) => {
         const empManagerId = emp?.manager?._id
           ? emp.manager._id.toString()
           : emp?.manager
-          ? emp.manager.toString()
-          : null;
+            ? emp.manager.toString()
+            : null;
 
         if (empManagerId === userId && (seq.length === 0 || idx === 0)) {
           allowed = true;
           console.log(
             "updateExpenseStatus: user is employee manager and allowed",
-            userId
+            userId,
           );
 
           // If there was no sequence, ensure manager is first approver for consistent progression
@@ -315,7 +312,6 @@ export const updateExpenseStatus = async (req, res) => {
         }
       }
 
-      // For payment_proceed or declined, allow any admin
       if (
         !allowed &&
         (status === "payment_proceed" || status === "declined") &&
@@ -324,7 +320,7 @@ export const updateExpenseStatus = async (req, res) => {
         allowed = true;
         console.log(
           "updateExpenseStatus: admin proceeding payment or declining",
-          userId
+          userId,
         );
       }
 
@@ -340,12 +336,12 @@ export const updateExpenseStatus = async (req, res) => {
           "Expense declined/rejected by user:",
           userId,
           "expenseId:",
-          expense._id
+          expense._id,
         );
         expense.status = status === "declined" ? "declined" : "rejected";
         await expense.save();
         const reloaded = await Expense.findById(expense._id).populate(
-          "employee category approvalSequence"
+          "employee category approvalSequence",
         );
         return res.status(200).json(reloaded);
       }
@@ -380,12 +376,12 @@ export const updateExpenseStatus = async (req, res) => {
         "currentApprovalStep=",
         expense.currentApprovalStep,
         "expenseId=",
-        expense._id
+        expense._id,
       );
 
       await expense.save();
       const reloaded = await Expense.findById(expense._id).populate(
-        "employee category approvalSequence"
+        "employee category approvalSequence",
       );
       return res.status(200).json(reloaded);
     }
@@ -403,6 +399,15 @@ import {
   receiptResponseSchema,
   formatGroqResponse,
 } from "../utils/extract.js";
+const parseDDMMYYYY = (dateStr) => {
+  if (!dateStr) return null;
+
+  const parts = dateStr.split("/");
+  if (parts.length !== 3) return null;
+
+  const [dd, mm, yyyy] = parts;
+  return new Date(`${yyyy}-${mm}-${dd}`);
+};
 
 export const uploadReceipt = async (req, res) => {
   try {
@@ -412,11 +417,15 @@ export const uploadReceipt = async (req, res) => {
     const prompt = `
 You will be given RAW TEXT extracted from a receipt.
 
-Your task is ONLY to FORMAT the information into the JSON structure below.
-Do NOT add explanations, comments, or extra text.
-If a field is missing or unclear, use null.
+Your task is to FORMAT and DERIVE the information into the JSON structure below.
 
-Return ONLY valid JSON.
+Rules:
+- Return ONLY valid JSON (no markdown, no explanation).
+- If a field is missing or unclear, use null.
+- For "description":
+  - If an explicit description is present, use it.
+  - Otherwise, GENERATE a short description (5–12 words)
+    using merchant name and main purchased item or purpose.
 
 JSON FORMAT:
 ${JSON.stringify(receiptResponseSchema, null, 2)}
@@ -424,7 +433,6 @@ ${JSON.stringify(receiptResponseSchema, null, 2)}
 RAW RECEIPT TEXT:
 ${receiptText}
 `;
-
 
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
@@ -440,22 +448,52 @@ ${receiptText}
           temperature: 0,
           max_tokens: 2048,
         }),
-      }
+      },
     );
-
-
 
     if (!response.ok) {
       throw new Error(`Groq API failed: ${response.status}`);
     }
 
-
     const data = await response.json();
 
-    const formattedData = formatGroqResponse(
-      data,
-      receiptResponseSchema
-    );
+    const formattedData = formatGroqResponse(data, receiptResponseSchema);
+
+    console.log("Formatted Receipt Data:", formattedData);
+
+    const parsedDate = formattedData.dateIncurred
+      ? parseDDMMYYYY(formattedData.dateIncurred)
+      : new Date();
+
+    if (!parsedDate || isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid date format in receipt",
+      });
+    }
+
+    const expense = new Expense({
+      employee: req.user.id,
+      company: req.user.company,
+
+      category: formattedData.category || "Other",
+      description: formattedData.description || "",
+
+      amountOriginal: Number(formattedData.amountOriginal),
+      currencyOriginal: formattedData.currencyOriginal,
+
+      amountConverted: Number(
+        formattedData.amountConverted ?? formattedData.amountOriginal,
+      ),
+
+      receiptUrl: null,
+      dateIncurred: parsedDate,
+
+      status: "draft",
+      currentApprovalStep: 0,
+    });
+
+    await expense.save();
 
     res.status(200).json({
       success: true,
