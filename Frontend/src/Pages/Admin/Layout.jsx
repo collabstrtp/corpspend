@@ -7,6 +7,7 @@ import { getProfile, logout } from "../../services/authApi";
 const menuItems = [
   { label: "Dashboard", icon: <LayoutDashboard />, path: "/admin" },
   { label: "Approvals", icon: <Send />, path: "/admin/approvals" },
+  { label: "Categories", icon: <Menu />, path: "/admin/categories" },
   { label: "Change Password", icon: <Lock />, path: "/admin/change-password" },
 ];
 

@@ -28,6 +28,11 @@ export const createExpense = async (expenseData) => {
   return response.data;
 };
 
+export const updateExpense = async (id, expenseData) => {
+  const response = await employeeApi.put(`/${id}`, expenseData);
+  return response.data;
+};
+
 export const updateExpenseStatus = async (id, statusData) => {
   const response = await employeeApi.patch(`/${id}/status`, statusData);
   return response.data;

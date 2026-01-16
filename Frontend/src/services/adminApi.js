@@ -85,6 +85,16 @@ export async function updateCategory(categoryId, updates) {
   return res.data;
 }
 
+export async function deleteCategory(categoryId) {
+  const res = await axios.delete(
+    `${BASE_URL}/categories/delete/${categoryId}`,
+    {
+      headers: getAuthHeader(),
+    },
+  );
+  return res.data;
+}
+
 // Admin expenses (approve/reject/list)
 export async function getAdminExpenses(status) {
   const url = status

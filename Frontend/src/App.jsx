@@ -10,6 +10,7 @@ import ChangePassword from "./Pages/Auth/ChangePassword";
 import Layout from "./Pages/Admin/Layout";
 import Dashboard from "./Pages/Admin/Dashboard";
 import Approvals from "./Pages/Admin/Approvals";
+import Categories from "./Pages/Admin/Categories";
 
 //manager pages
 import ManagerLayout from "./Pages/Manager/ManagerLayout";
@@ -34,6 +35,7 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="approvals" element={<Approvals />} />
+            <Route path="categories" element={<Categories />} />
             <Route path="change-password" element={<ChangePassword />} />
           </Route>
         </Route>

@@ -168,9 +168,7 @@ const Dashboard = () => {
                       >
                         <option value="">No Manager</option>
                         {users
-                          .filter(
-                            (u) => u.role === "manager" || u.role === "admin",
-                          )
+                          .filter((u) => u.role === "manager")
                           .map((m) => (
                             <option key={m._id || m.id} value={m._id || m.id}>
                               {m.name}
