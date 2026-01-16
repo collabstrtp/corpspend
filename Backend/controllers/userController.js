@@ -53,7 +53,7 @@ export const updateUserRole = async (req, res) => {
       req.params.id,
       /*       { role, manager },
        */ updates,
-      { new: true }
+      { new: true },
     );
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
@@ -77,7 +77,7 @@ export const getUser = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({ company: req.user.company }).select(
-      "-passwordHash"
+      "-passwordHash",
     );
     res.json(users);
   } catch (error) {
@@ -109,6 +109,20 @@ export const sendPassword = async (req, res) => {
     res.json({ message: "Password sent successfully" });
   } catch (error) {
     console.error("Send Password Error:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const removeUser = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "User removed successfully" });
+  } catch (error) {
+    console.error("Remove User Error:", error.message);
     res.status(500).json({ message: "Server error" });
   }
 };

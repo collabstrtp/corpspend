@@ -3,7 +3,7 @@ import { BASE_URL } from "../config/urlconfig";
 
 function getAuthHeader() {
   const token = localStorage.getItem("token");
-    console.log(token);
+  console.log(token);
 
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -36,7 +36,7 @@ export async function updateUser(userId, updates) {
     updates,
     {
       headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    }
+    },
   );
   return res.data;
 }
@@ -47,8 +47,15 @@ export async function sendPassword(userId) {
     {},
     {
       headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    }
+    },
   );
+  return res.data;
+}
+
+export async function removeUser(userId) {
+  const res = await axios.delete(`${BASE_URL}/users/removeuser/${userId}`, {
+    headers: getAuthHeader(),
+  });
   return res.data;
 }
 
@@ -73,7 +80,7 @@ export async function updateCategory(categoryId, updates) {
     updates,
     {
       headers: { "Content-Type": "application/json", ...getAuthHeader() },
-    }
+    },
   );
   return res.data;
 }
@@ -91,7 +98,7 @@ export async function updateExpenseStatus(expenseId, status) {
   const res = await axios.patch(
     `${BASE_URL}/expenses/${expenseId}/status`,
     { status },
-    { headers: { "Content-Type": "application/json", ...getAuthHeader() } }
+    { headers: { "Content-Type": "application/json", ...getAuthHeader() } },
   );
   return res.data;
 }

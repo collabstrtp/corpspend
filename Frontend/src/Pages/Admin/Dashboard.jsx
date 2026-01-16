@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Send, X } from "lucide-react";
+import { Edit, Plus, Send, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   fetchUsers,
   createUser,
   updateUser,
   sendPassword as sendPasswordApi,
+  removeUser as removeUserApi,
 } from "../../services/adminApi";
 
 const Dashboard = () => {
@@ -72,8 +73,8 @@ const Dashboard = () => {
       await updateUser(userId, { role: newRole });
       setUsers((prev) =>
         prev.map((u) =>
-          (u._id || u.id) === userId ? { ...u, role: newRole } : u
-        )
+          (u._id || u.id) === userId ? { ...u, role: newRole } : u,
+        ),
       );
     } catch (e) {
       console.error("Failed to update role", e);
@@ -85,11 +86,25 @@ const Dashboard = () => {
       await updateUser(userId, { manager: managerId || null });
       setUsers((prev) =>
         prev.map((u) =>
-          (u._id || u.id) === userId ? { ...u, manager: managerId } : u
-        )
+          (u._id || u.id) === userId ? { ...u, manager: managerId } : u,
+        ),
       );
     } catch (e) {
       console.error("Failed to update manager", e);
+    }
+  };
+
+  const removeUser = async (user) => {
+    if (!confirm(`Are you sure you want to remove ${user.name}?`)) return;
+    try {
+      await removeUserApi(user._id || user.id);
+      setUsers((prev) =>
+        prev.filter((u) => (u._id || u.id) !== (user._id || user.id)),
+      );
+      alert(`${user.name} has been removed successfully.`);
+    } catch (error) {
+      console.log(error);
+      alert("Failed to remove user");
     }
   };
 
@@ -115,60 +130,74 @@ const Dashboard = () => {
                 <th className="text-left p-2 font-semibold">Email</th>
 
                 <th className="text-left p-2 font-semibold">Password</th>
+                <th className="text-left p-2 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr
-                  key={user._id || user.id}
-                  className="border-b border-gray-300"
-                >
-                  <td className="p-2">{user.name}</td>
-                  <td className="p-2">
-                    <select
-                      className="border border-gray-300 rounded px-2 py-1"
-                      value={user.role}
-                      onChange={(e) =>
-                        handleRoleUpdate(user._id || user.id, e.target.value)
-                      }
-                    >
-                      <option value="admin">Admin</option>
-                      <option value="manager">Manager</option>
-                      <option value="employee">Employee</option>
-                    </select>
-                  </td>
-                  <td className="p-2">
-                    <select
-                      className="border border-gray-300 rounded px-2 py-1"
-                      value={user.manager?._id || user.manager || ""}
-                      onChange={(e) =>
-                        handleManagerUpdate(user._id || user.id, e.target.value)
-                      }
-                    >
-                      <option value="">No Manager</option>
-                      {users
-                        .filter(
-                          (u) => u.role === "manager" || u.role === "admin"
-                        )
-                        .map((m) => (
-                          <option key={m._id || m.id} value={m._id || m.id}>
-                            {m.name}
-                          </option>
-                        ))}
-                    </select>
-                  </td>
-                  <td className="p-2">{user.email}</td>
+              {users
+                .filter((user) => user.role !== "admin")
+                .map((user) => (
+                  <tr
+                    key={user._id || user.id}
+                    className="border-b border-gray-300"
+                  >
+                    <td className="p-2">{user.name}</td>
+                    <td className="p-2">
+                      <select
+                        className="border border-gray-300 rounded px-2 py-1"
+                        value={user.role}
+                        onChange={(e) =>
+                          handleRoleUpdate(user._id || user.id, e.target.value)
+                        }
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="manager">Manager</option>
+                        <option value="employee">Employee</option>
+                      </select>
+                    </td>
+                    <td className="p-2">
+                      <select
+                        className="border border-gray-300 rounded px-2 py-1"
+                        value={user.manager?._id || user.manager || ""}
+                        onChange={(e) =>
+                          handleManagerUpdate(
+                            user._id || user.id,
+                            e.target.value,
+                          )
+                        }
+                      >
+                        <option value="">No Manager</option>
+                        {users
+                          .filter(
+                            (u) => u.role === "manager" || u.role === "admin",
+                          )
+                          .map((m) => (
+                            <option key={m._id || m.id} value={m._id || m.id}>
+                              {m.name}
+                            </option>
+                          ))}
+                      </select>
+                    </td>
+                    <td className="p-2">{user.email}</td>
 
-                  <td className="p-2">
-                    <button
-                      onClick={() => sendPassword(user)}
-                      className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm"
-                    >
-                      Send password
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    <td className="p-2">
+                      <button
+                        onClick={() => sendPassword(user)}
+                        className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm"
+                      >
+                        Send password
+                      </button>
+                    </td>
+                    <td className="p-2">
+                      <button
+                        onClick={() => removeUser(user)}
+                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm flex items-center gap-1"
+                      >
+                        <X size={16} /> Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               {showNewUser && (
                 <tr
                   key="new-user"
@@ -219,6 +248,7 @@ const Dashboard = () => {
                       }
                     />
                   </td>
+
                   <td className="p-2 flex gap-2">
                     <button
                       onClick={addUser}
