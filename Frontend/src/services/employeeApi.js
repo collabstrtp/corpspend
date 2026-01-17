@@ -38,4 +38,18 @@ export const updateExpenseStatus = async (id, statusData) => {
   return response.data;
 };
 
+export const deleteExpense = async (id) => {
+  const response = await employeeApi.delete(`/${id}`);
+  return response.data;
+};
+
+export const uploadReceipt = async (formData) => {
+  const response = await employeeApi.post("/upload-receipt", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return response.data;
+};
+
 export default employeeApi;

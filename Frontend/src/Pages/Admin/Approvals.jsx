@@ -4,10 +4,12 @@ import {
   getAdminExpenses,
   approveExpense,
   rejectExpense,
+  fetchCategories,
 } from "../../services/adminApi";
 
 export default function Approvals() {
   const [expenses, setExpenses] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("approved");
 
@@ -15,7 +17,7 @@ export default function Approvals() {
     setLoading(true);
     try {
       const data = await getAdminExpenses(
-        filter === "all" ? undefined : filter
+        filter === "all" ? undefined : filter,
       );
       const final =
         filter === "all"
@@ -29,7 +31,30 @@ export default function Approvals() {
   };
 
   useEffect(() => {
-    load();
+    const loadData = async () => {
+      try {
+        const [expenseData, categoryData] = await Promise.all([
+          getAdminExpenses(filter === "all" ? undefined : filter),
+          fetchCategories(),
+        ]);
+
+        const final =
+          filter === "all"
+            ? expenseData.filter(
+                (e) => e.status !== "draft" && e.status !== "pending",
+              )
+            : expenseData;
+
+        setExpenses(final);
+        setCategories(categoryData);
+      } catch (error) {
+        console.error("Failed to load data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, [filter]);
 
   const handleApprove = async (id) => {
@@ -104,7 +129,8 @@ export default function Approvals() {
                       {exp.employee?.name || exp.employee}
                     </td>
                     <td className="p-2">
-                      {exp.category?.name || exp.category}
+                      {categories.find((c) => c._id === exp.category)?.name ||
+                        (exp.category === "other" ? "Other" : exp.category)}
                     </td>
                     <td className="p-2">
                       {exp.amountConverted || exp.amountOriginal}

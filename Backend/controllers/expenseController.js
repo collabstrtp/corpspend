@@ -186,6 +186,108 @@ export const getAdminExpenses = async (req, res) => {
   }
 };
 
+export const updateExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+
+    if (!expense) return res.status(404).json({ message: "Expense not found" });
+
+    // Only allow editing draft expenses
+    if (expense.status !== "draft") {
+      return res
+        .status(400)
+        .json({ message: "Only draft expenses can be edited" });
+    }
+
+    // Only employee who created the expense can edit it
+    if (expense.employee.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "You can only edit your own expenses" });
+    }
+
+    const {
+      category,
+      description,
+      amountOriginal,
+      currencyOriginal,
+      dateIncurred,
+      paidBy,
+    } = req.body;
+
+    // Get company's base currency for conversion
+    const company = await Company.findById(req.user.company);
+    const baseCurrency = company.baseCurrency;
+
+    // Convert currency if needed
+    let amountConverted = amountOriginal;
+    if (currencyOriginal !== baseCurrency) {
+      try {
+        const response = await axios.get(
+          `https://api.exchangerate-api.com/v4/latest/${currencyOriginal}`,
+        );
+        const rate = response.data.rates[baseCurrency];
+        amountConverted = amountOriginal * rate;
+      } catch (conversionError) {
+        console.error("Currency conversion error:", conversionError.message);
+        amountConverted = amountOriginal;
+      }
+    }
+
+    if (category !== "other" && !mongoose.Types.ObjectId.isValid(category)) {
+      return res.status(400).json({ message: "Invalid category" });
+    }
+
+    // Update the expense
+    expense.category = category;
+    expense.description = description;
+    expense.amountOriginal = amountOriginal;
+    expense.currencyOriginal = currencyOriginal;
+    expense.amountConverted = amountConverted;
+    expense.dateIncurred = dateIncurred;
+    expense.paidBy = paidBy;
+
+    await expense.save();
+
+    const updatedExpense = await Expense.findById(expense._id).populate(
+      "employee category approvalSequence",
+    );
+
+    res.status(200).json(updatedExpense);
+  } catch (error) {
+    console.error("Update Expense Error:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+
+    if (!expense) return res.status(404).json({ message: "Expense not found" });
+
+    // Only allow deleting draft expenses
+    if (expense.status !== "draft") {
+      return res
+        .status(400)
+        .json({ message: "Only draft expenses can be deleted" });
+    }
+
+    // Only employee who created the expense can delete it
+    if (expense.employee.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "You can only delete your own expenses" });
+    }
+
+    await Expense.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: "Expense deleted successfully" });
+  } catch (error) {
+    console.error("Delete Expense Error:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const updateExpenseStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -312,6 +414,7 @@ export const updateExpenseStatus = async (req, res) => {
         }
       }
 
+      // For payment_proceed or declined, allow any admin
       if (
         !allowed &&
         (status === "payment_proceed" || status === "declined") &&

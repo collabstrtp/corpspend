@@ -1,40 +1,52 @@
 import React, { useState, useEffect } from "react";
-import { Upload, Plus } from "lucide-react";
+import { Upload, Plus, Trash2 } from "lucide-react";
 import {
   getEmployeeExpenses,
   createExpense,
+  updateExpense,
   updateExpenseStatus,
+  deleteExpense,
+  uploadReceipt,
 } from "../../services/employeeApi";
 import { getCategories } from "../../services/categoryApi";
 import axios from "axios";
 import { jsPDF } from "jspdf";
 import { BASE_URL } from "../../config/urlconfig";
 
-
 export default function EmpDashboard() {
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
-    const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
+  const fetchData = async () => {
+    try {
+      const [expenseData, categoryData] = await Promise.all([
+        getEmployeeExpenses(),
+        getCategories(),
+      ]);
+      if (expenseData) {
+        setExpenses(expenseData);
+      }
+      if (categoryData) {
+        setCategories(categoryData);
+      }
+    } catch (error) {
+      console.error("Failed to fetch data", error);
+    }
+  };
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [expenseData, categoryData] = await Promise.all([
-          getEmployeeExpenses(),
-          getCategories(),
-        ]);
-        if (expenseData) {
-          setExpenses(expenseData);
-        }
-        if (categoryData) {
-          setCategories(categoryData);
-        }
-      } catch (error) {
-        console.error("Failed to fetch data", error);
-      }
-    }
     fetchData();
+  }, []);
+
+  // Refresh data when window gets focus (user returns to tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchData();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   const [showNewExpenseModal, setShowNewExpenseModal] = useState(false);
@@ -43,13 +55,13 @@ export default function EmpDashboard() {
     date: "",
     category: "",
     paidBy: "",
-    remarks: "",
     amount: "",
     currency: "INR",
   });
 
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState(null);
+  const [editedExpense, setEditedExpense] = useState(null);
   const [file, setFile] = useState(null);
 
   const addExpense = async () => {
@@ -72,7 +84,6 @@ export default function EmpDashboard() {
           date: "",
           category: "",
           paidBy: "",
-          remarks: "",
           amount: "",
           currency: "INR",
         });
@@ -97,13 +108,27 @@ export default function EmpDashboard() {
       ) {
         setSelectedExpense(updated);
       }
+      // Refetch expenses to get updated status from server
+      const refreshedExpenses = await getEmployeeExpenses();
+      setExpenses(refreshedExpenses);
     } catch (error) {
       console.error("Failed to update expense status", error);
     }
   };
 
+  const removeExpense = async (id) => {
+    try {
+      await deleteExpense(id);
+      setExpenses(expenses.filter((exp) => (exp._id || exp.id) !== id));
+    } catch (error) {
+      console.error("Failed to delete expense", error);
+      alert("Failed to delete expense");
+    }
+  };
+
   const viewExpenseDetails = (expense) => {
     setSelectedExpense(expense);
+    setEditedExpense({ ...expense });
     setShowDetailModal(true);
   };
 
@@ -207,17 +232,7 @@ export default function EmpDashboard() {
         file.type.startsWith("image/") ? "receipt.pdf" : file.name,
       );
 
-      const res = await axios.post(
-  `${BASE_URL}/expenses/upload-receipt`,
-  formData,
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "multipart/form-data",
-    },
-  }
-);
-
+      const res = await uploadReceipt(formData);
 
       alert("File uploaded successfully");
       console.log(res.data);
@@ -325,10 +340,9 @@ export default function EmpDashboard() {
                 <th className="text-left p-2 font-semibold">Description</th>
                 <th className="text-left p-2 font-semibold">Date</th>
                 <th className="text-left p-2 font-semibold">Category</th>
-                <th className="text-left p-2 font-semibold">Paid By</th>
-                <th className="text-left p-2 font-semibold">Remarks</th>
                 <th className="text-left p-2 font-semibold">Amount</th>
                 <th className="text-left p-2 font-semibold">Status</th>
+                <th className="text-left p-2 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -344,16 +358,14 @@ export default function EmpDashboard() {
                       "Unknown"}
                   </td> */}
                   <td className="p-2">{expense.description}</td>
-<td className="p-2">
-  {new Date(expense.dateIncurred).toLocaleDateString("en-GB")}
-</td>
+                  <td className="p-2">
+                    {new Date(expense.dateIncurred).toLocaleDateString("en-GB")}
+                  </td>
                   <td className="p-2">
                     {categories.find((c) => c._id === expense.category)?.name ||
                       (expense.category === "other" ? "Other" : "Unknown")}
                   </td>
 
-                  <td className="p-2">{expense.paidBy}</td>
-                  <td className="p-2">{expense.remarks}</td>
                   <td className="p-2">
                     <div className="flex flex-col">
                       <span className="text-sm">
@@ -372,6 +384,19 @@ export default function EmpDashboard() {
                     >
                       {expense.status}
                     </span>
+                  </td>
+                  <td className="p-2">
+                    {expense.status === "draft" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeExpense(expense._id || expense.id);
+                        }}
+                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-700 text-xs"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -509,20 +534,6 @@ export default function EmpDashboard() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Remarks
-                </label>
-                <textarea
-                  placeholder="Add any additional notes..."
-                  className="w-full border-2 border-gray-300 rounded px-3 py-2 h-20"
-                  value={newExpense.remarks}
-                  onChange={(e) =>
-                    setNewExpense({ ...newExpense, remarks: e.target.value })
-                  }
-                />
-              </div>
-
               <div className="bg-blue-50 border border-blue-200 rounded p-3">
                 <p className="text-xs text-blue-800">
                   <strong>Note:</strong> The amount will be automatically
@@ -570,13 +581,6 @@ export default function EmpDashboard() {
             </div>
 
             <div className="p-6">
-              {/* Attach Receipt Button */}
-              <div className="mb-6">
-                <button className="px-4 py-2 bg-white border-2 border-gray-800 rounded hover:bg-gray-50 flex items-center gap-2">
-                  <Upload size={16} /> Attach Receipt
-                </button>
-              </div>
-
               <div className="grid grid-cols-2 gap-6">
                 {/* Left Column */}
                 <div className="space-y-4">
@@ -590,6 +594,12 @@ export default function EmpDashboard() {
                       value={selectedExpense.description}
                       disabled={selectedExpense.status !== "draft"}
                       readOnly={selectedExpense.status !== "draft"}
+                      onChange={(e) =>
+                        setEditedExpense({
+                          ...editedExpense,
+                          description: e.target.value,
+                        })
+                      }
                     />
                   </div>
 
@@ -601,6 +611,12 @@ export default function EmpDashboard() {
                       className="w-full border-2 border-gray-300 rounded px-3 py-2 bg-gray-50"
                       value={selectedExpense.category}
                       disabled={selectedExpense.status !== "draft"}
+                      onChange={(e) =>
+                        setEditedExpense({
+                          ...editedExpense,
+                          category: e.target.value,
+                        })
+                      }
                     >
                       {/* Permanent option */}
                       <option value="other">Other</option>
@@ -625,31 +641,19 @@ export default function EmpDashboard() {
                         value={selectedExpense.amountOriginal}
                         disabled={selectedExpense.status !== "draft"}
                         readOnly={selectedExpense.status !== "draft"}
+                        onChange={() => {}}
                       />
                       <select
                         className="border-2 border-gray-300 rounded px-3 py-2 bg-gray-50"
                         value={selectedExpense.currencyOriginal}
                         disabled={selectedExpense.status !== "draft"}
+                        onChange={() => {}}
                       >
                         <option>INR</option>
                         <option>USD</option>
                         <option>EUR</option>
                       </select>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-600">
-                      Description
-                    </label>
-                    <textarea
-                      className="w-full border-2 border-gray-300 rounded px-3 py-2 bg-gray-50 h-24"
-                      value={
-                        selectedExpense.remarks || selectedExpense.description
-                      }
-                      disabled={selectedExpense.status !== "draft"}
-                      readOnly={selectedExpense.status !== "draft"}
-                    />
                   </div>
                 </div>
 
@@ -665,6 +669,7 @@ export default function EmpDashboard() {
                       value={selectedExpense.date}
                       disabled={selectedExpense.status !== "draft"}
                       readOnly={selectedExpense.status !== "draft"}
+                      onChange={() => {}}
                     />
                   </div>
 
@@ -676,22 +681,12 @@ export default function EmpDashboard() {
                       className="w-full border-2 border-gray-300 rounded px-3 py-2 bg-gray-50"
                       value={selectedExpense.paidBy}
                       disabled={selectedExpense.status !== "draft"}
+                      readOnly={selectedExpense.status !== "draft"}
+                      onChange={() => {}}
                     >
                       <option>Self</option>
                       <option>Company</option>
                     </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-600">
-                      Remarks
-                    </label>
-                    <textarea
-                      className="w-full border-2 border-gray-300 rounded px-3 py-2 bg-gray-50 h-24"
-                      value={selectedExpense.remarks}
-                      disabled={selectedExpense.status !== "draft"}
-                      readOnly={selectedExpense.status !== "draft"}
-                    />
                   </div>
                 </div>
               </div>
