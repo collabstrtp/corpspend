@@ -11,9 +11,7 @@ import companyRoutes from "./companyRoutes.js";
 import expenseRoutes from "./expenseRoutes.js";
 import categoryRoutes from "./categoryRoutes.js";
 
-if (process.env.NODE_ENV !== "production") {
-  dotenv.config();
-}
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
