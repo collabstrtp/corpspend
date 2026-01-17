@@ -20,7 +20,7 @@ const app = express();
 app.use(
   cors({
     origin: "*",
-  })
+  }),
 );
 app.use(express.json());
 connectDB();
@@ -35,7 +35,8 @@ app.use("/users", userRoutes);
 app.use("/expenses", expenseRoutes);
 app.use("/categories", categoryRoutes);
 /* app.use("/approvalactions", approvalActionRoutes);
- */ const PORT = process.env.PORT || 5001;
+ */
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

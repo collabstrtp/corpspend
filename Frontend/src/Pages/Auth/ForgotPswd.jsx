@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import { forgotPassword } from "../../services/authApi";
 
 const ForgotPswd = () => {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -20,7 +22,16 @@ const ForgotPswd = () => {
       return;
     }
 
-    setSubmitted(true);
+    setIsLoading(true);
+    try {
+      await forgotPassword(email);
+      setSubmitted(true);
+    } catch (error) {
+      console.log(error);
+      setError(error.response?.data?.message || "Failed to send reset email");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBackToLogin = () => {
@@ -67,9 +78,10 @@ const ForgotPswd = () => {
 
               <button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-lg shadow-blue-500/20"
+                disabled={isLoading}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-lg shadow-blue-500/20"
               >
-                Reset Password
+                {isLoading ? "Sending..." : "Reset Password"}
               </button>
             </form>
 

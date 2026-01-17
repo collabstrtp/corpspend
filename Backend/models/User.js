@@ -17,6 +17,8 @@ const UserSchema = new mongoose.Schema({
   },
   manager: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // reporting manager
   status: { type: String, enum: ["active", "inactive"], default: "active" },
+  resetToken: { type: String },
+  resetTokenExpiry: { type: Date },
   createdAt: { type: Date, default: Date.now },
 });
 

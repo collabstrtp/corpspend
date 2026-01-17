@@ -38,7 +38,7 @@ export const signup = async (req, res) => {
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     res.status(201).json({
@@ -75,7 +75,7 @@ export const login = async (req, res) => {
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     let numericRole;
@@ -151,7 +151,7 @@ export const getUserProfile = async (req, res) => {
   }
 };
 
-import { sendPasswordEmail } from "../utils/emailService.js";
+import { sendPasswordEmail, sendResetEmail } from "../utils/emailService.js";
 import crypto from "crypto";
 
 export const forgotPassword = async (req, res) => {
@@ -161,18 +161,21 @@ export const forgotPassword = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Generate new random password
-    const newPassword = Math.random().toString(36).slice(-8);
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenExpiry = Date.now() + 3600000; // 1 hour
 
-    // Update user password
-    user.passwordHash = passwordHash;
+    // Update user with token
+    user.resetToken = resetToken;
+    user.resetTokenExpiry = resetTokenExpiry;
     await user.save();
 
-    // Send new password via email
-    await sendPasswordEmail(user.email, newPassword);
+    // Send reset email
+    await sendResetEmail(user.email, resetToken);
 
-    res.status(200).json({ message: "New password sent to your email" });
+    res
+      .status(200)
+      .json({ message: "Password reset token sent to your email" });
   } catch (error) {
     console.error("Forgot Password Error:", error.message);
     res.status(500).json({ message: "Server error" });

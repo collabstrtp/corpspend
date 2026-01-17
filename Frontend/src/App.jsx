@@ -20,6 +20,7 @@ import ManagerDashboard from "./Pages/Manager/ManagerDashboard";
 import EmpLayout from "./Pages/Employee/EmpLayout";
 import EmpDashboard from "./Pages/Employee/EmpDashboard";
 import ForgotPswd from "./Pages/Auth/ForgotPswd";
+import ResetPassword from "./Pages/Auth/ResetPassword";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/forgotpassword" element={<ForgotPswd />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={[1]} />}>
           <Route path="/admin" element={<Layout />}>

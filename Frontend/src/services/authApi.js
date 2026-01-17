@@ -24,6 +24,18 @@ export const getProfile = async () => {
   return response.data;
 };
 
+export const forgotPassword = async (email) => {
+  const response = await authApi.post("/forgot-password", { email });
+  return response.data;
+};
+
+export const resetPassword = async (token, newPassword) => {
+  const response = await authApi.post("/reset-password", {
+    token,
+    newPassword,
+  });
+  return response.data;
+};
 export const changePassword = async (oldPassword, newPassword) => {
   const response = await authApi.put("/change-password", {
     oldPassword,
