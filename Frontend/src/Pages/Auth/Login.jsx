@@ -58,7 +58,7 @@ const Login = () => {
         setCredentials({
           user: response.data.user,
           token: response.data.token,
-        })
+        }),
       );
 
       // Navigate based on user role
@@ -112,7 +112,7 @@ const Login = () => {
               <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-white" strokeWidth={3} />
               </div>
-              <h1 className="text-2xl font-bold text-white">SpendWise</h1>
+              <h1 className="text-2xl font-bold text-white">CorpSpend</h1>
             </div>
           </div>
 

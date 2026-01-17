@@ -195,7 +195,7 @@ const SignUp = () => {
     setSearchQuery(query);
     if (query) {
       const filtered = countries.filter((c) =>
-        c.name.toLowerCase().includes(query.toLowerCase())
+        c.name.toLowerCase().includes(query.toLowerCase()),
       );
       setFilteredCountries(filtered);
     } else {
@@ -252,7 +252,7 @@ const SignUp = () => {
 
     try {
       const selectedCountry = countries.find(
-        (c) => c.name === formData.country
+        (c) => c.name === formData.country,
       );
 
       const payload = {
@@ -300,11 +300,11 @@ const SignUp = () => {
         setCredentials({
           user: { ...data.user, role: numericRole },
           token: data.token,
-        })
+        }),
       );
 
       alert(
-        `Account created successfully! Default currency: ${selectedCountry.currency}`
+        `Account created successfully! Default currency: ${selectedCountry.currency}`,
       );
 
       navigate("/admin/dashboard");
@@ -342,7 +342,7 @@ const SignUp = () => {
               <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-white" strokeWidth={3} />
               </div>
-              <h1 className="text-2xl font-bold text-white">SpendWise</h1>
+              <h1 className="text-2xl font-bold text-white">CorpSpend</h1>
             </div>
           </div>
 
