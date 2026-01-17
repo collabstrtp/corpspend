@@ -17,4 +17,5 @@ router.get("/profile", authMiddleware, getUserProfile);
 router.put("/change-password", authMiddleware, changePassword);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+
 export default router;

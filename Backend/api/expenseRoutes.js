@@ -1,5 +1,7 @@
 import express from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
+import { singleUpload } from "../middleware/multer.js";
+
 import {
   getExpenses,
   getEmployeeExpenses,
@@ -7,12 +9,10 @@ import {
   getAdminExpenses,
   createExpense,
   updateExpense,
-  deleteExpense,
   updateExpenseStatus,
   uploadReceipt,
+  deleteExpense,
 } from "../controllers/expenseController.js";
-
-import { singleUpload } from "../middleware/multer.js";
 
 const router = express.Router();
 
