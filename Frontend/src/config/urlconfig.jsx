@@ -1,2 +1,2 @@
 export const BASE_URL =
-  "https://corpspend-backend.vercel.app"; /* "https://odoo-wczx.vercel.app"; */
+  "http://localhost:5000"; /* "https://odoo-wczx.vercel.app"; */

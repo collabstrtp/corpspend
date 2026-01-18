@@ -209,38 +209,40 @@ export default function EmpDashboard() {
     });
   };
 
-  const handleUpload = async (e) => {
-    e.preventDefault();
+const handleUpload = async (e) => {
+  e.preventDefault();
 
-    if (!file) {
-      alert("No file selected!");
-      return;
-    }
+  if (!file) {
+    alert("No file selected!");
+    return;
+  }
 
-    try {
-      let fileToUpload = file;
+  const isValid =
+    file.type.startsWith("image/") ||
+    file.type === "application/pdf" ||
+    file.type ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-      // Convert image → PDF only if image
-      if (file.type.startsWith("image/")) {
-        fileToUpload = await convertImageToPDF(file);
-      }
+  if (!isValid) {
+    alert("Only Image, PDF, or DOCX files are allowed");
+    return;
+  }
 
-      const formData = new FormData();
-      formData.append(
-        "file",
-        fileToUpload,
-        file.type.startsWith("image/") ? "receipt.pdf" : file.name,
-      );
+  try {
+    const formData = new FormData();
+    formData.append("file", file, file.name);
 
-      const res = await uploadReceipt(formData);
+    await uploadReceipt(formData);
 
-      alert("File uploaded successfully");
-      console.log(res.data);
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("File upload failed");
-    }
-  };
+    alert("File uploaded successfully");
+  } catch (error) {
+    console.error("Upload error:", error);
+    alert(
+      error?.response?.data?.message || "File upload failed"
+    );
+  }
+};
+
 
   return (
     <div className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen">
